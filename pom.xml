@@ -9,6 +9,13 @@
 
 	<dependencyManagement>
 		<dependencies>
+			<!-- feel-engine 1.19.3 from the Camunda 7.24.0 BOM rebuilds its root context for every evaluation and is very slow -->
+			<dependency>
+				<groupId>org.camunda.feel</groupId>
+				<artifactId>feel-engine</artifactId>
+				<classifier>scala-shaded</classifier>
+				<version>1.19.6</version>
+			</dependency>
 			<dependency>
 				<groupId>org.camunda.bpm.dmn</groupId>
 				<artifactId>camunda-engine-dmn-bom</artifactId>
