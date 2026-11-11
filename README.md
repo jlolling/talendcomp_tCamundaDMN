@@ -9,7 +9,7 @@ The component expects and input flow containing all input variables from the dec
 You can configure in the component which column will be used for the output.
 
 The component tries to feed the expected input variables of the decision with the incoming flow columns. 
-If there are columnbs missing, the component will complain the missing column and fail. 
+The component does not check if all input variables of the decision have a corresponding incoming column, because this check fails for decisions which depend on other decisions within one DRG. A missing column simply means the variable is not set; how the decision handles this depends on its expressions. 
 The component also checks if the expected output can be matched with the output of the decision definition. If a expected output column cannot be matched with a output variable of the decision, the component will fail with a meaningful error message. 
 
 Variables not used for for the output are simply untouched by the component.
