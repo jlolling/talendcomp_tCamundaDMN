@@ -25,8 +25,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.camunda.bpm.dmn.engine.DmnDecision;
 import org.camunda.bpm.dmn.engine.DmnDecisionLogic;
@@ -53,7 +55,7 @@ public class DmnRunner {
 	private DmnDecisionResult resultset = null;
 	private DmnDecisionResultEntries oneResult = null;
 	private boolean useCachedDecision = false;
-	private static Map<String, DmnDecision> decisionMap = new HashMap<>();
+	private static Map<String, DmnDecision> decisionMap = new ConcurrentHashMap<>();
 	private List<DmnDecisionTableInputImpl> listDecisionTableInputs = null;
 	private List<DmnDecisionTableOutputImpl> listDecisionTableOutputs = null;
 	private List<String> listTalendIncomingColumns = new ArrayList<>();
@@ -63,7 +65,14 @@ public class DmnRunner {
 	private int currentResultIndex = 0;
 	private TypeUtil typeUtil = new TypeUtil();
 	private boolean cacheResults = false;
-	private Map<String,DmnDecisionResult> resultCache = new HashMap<>();
+	private int maxCachedResults = 10000;
+	private Map<Map<String, Object>, DmnDecisionResult> resultCache = new LinkedHashMap<Map<String, Object>, DmnDecisionResult>(16, 0.75f, true) {
+		private static final long serialVersionUID = 1L;
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<Map<String, Object>, DmnDecisionResult> eldest) {
+			return size() > maxCachedResults;
+		}
+	};
 	
 	public DmnRunner() {
 		dmnEngine = DmnEngineConfiguration.createDefaultDmnEngineConfiguration().buildEngine();
@@ -83,8 +92,9 @@ public class DmnRunner {
 			throw new IllegalArgumentException("resourceName cannot be null or empty");
 		}
 		String decisionCacheKey = "resource:" + resourceName+"#"+decisionKey;
-		if (useCachedDecision) {
-			decision = decisionMap.get(decisionCacheKey);
+		decision = useCachedDecision ? decisionMap.get(decisionCacheKey) : null;
+		if (decision != null) {
+			inspectDecisionIO();
 		}
 		if (decision == null) {
 			InputStream in = null;
@@ -114,8 +124,9 @@ public class DmnRunner {
 			throw new IllegalArgumentException("path cannot be null or empty");
 		}
 		String decisionCacheKey = "file:" + path+"#"+decisionKey;
-		if (useCachedDecision) {
-			decision = decisionMap.get(decisionCacheKey);
+		decision = useCachedDecision ? decisionMap.get(decisionCacheKey) : null;
+		if (decision != null) {
+			inspectDecisionIO();
 		}
 		if (decision == null) {
 			InputStream in = null;
@@ -280,18 +291,23 @@ public class DmnRunner {
 		}
 	}
 	
-	public String getValueKeyForCurrentVariables() {
-		StringBuilder sb = new StringBuilder(100);
-		for (Map.Entry<String, Object> entry : variables.entrySet()) {
-			sb.append(entry.getKey());
-			Object value = entry.getValue();
-			if (value instanceof Date) {
-				sb.append(((Date) value).getTime());
-			} else {
-				sb.append(value);
+	/**
+	 * Builds the key for the result cache as a snapshot of the current variables.
+	 * Dates are copied because they are mutable and to treat Date and Timestamp with the same time as equal.
+	 * @return map of variable names and values
+	 */
+	public Map<String, Object> getValueKeyForCurrentVariables() {
+		Map<String, Object> key = new HashMap<>();
+		if (variables != null) {
+			for (Map.Entry<String, Object> entry : variables.entrySet()) {
+				Object value = entry.getValue();
+				if (value instanceof Date) {
+					value = new Date(((Date) value).getTime());
+				}
+				key.put(entry.getKey(), value);
 			}
 		}
-		return sb.toString();
+		return key;
 	}
 	
 	/**
@@ -300,7 +316,7 @@ public class DmnRunner {
 	 * @throws Exception
 	 */
 	public void evaluate() throws Exception {
-		String inputKey = null;
+		Map<String, Object> inputKey = null;
 		if (cacheResults) {
 			inputKey = getValueKeyForCurrentVariables();
 			resultset = resultCache.get(inputKey);
@@ -359,6 +375,9 @@ public class DmnRunner {
 	public Object getOutputValue(String outgoingSchemaColumn, boolean nullable) throws Exception {
 		if (oneResult == null) {
 			if (provideOneRecordIfNoDecsionResult) {
+				if (nullable == false) {
+					throw new Exception("For column: " + outgoingSchemaColumn + " the decision has no result and therefore provides null but column is configured as not nullable");
+				}
 				return null;
 			} else {
 				throw new IllegalStateException("We expect to have one result record but there is no one. Did you have called next and set option provideOneRecordIfNoDecsionResult correctly?");
@@ -453,6 +472,31 @@ public class DmnRunner {
 
 	public void setCacheResults(boolean cacheResults) {
 		this.cacheResults = cacheResults;
+	}
+
+	public int getMaxCachedResults() {
+		return maxCachedResults;
+	}
+
+	/**
+	 * limits the number of cached results, the least recently used results will be removed first
+	 * @param maxCachedResults
+	 */
+	public void setMaxCachedResults(int maxCachedResults) {
+		this.maxCachedResults = maxCachedResults;
+	}
+
+	public boolean isUseCachedDecision() {
+		return useCachedDecision;
+	}
+
+	/**
+	 * set true to keep parsed decisions in a JVM wide cache and reuse them e.g. in iterations.
+	 * Must be set before loading the decision.
+	 * @param useCachedDecision
+	 */
+	public void setUseCachedDecision(boolean useCachedDecision) {
+		this.useCachedDecision = useCachedDecision;
 	}
 
 

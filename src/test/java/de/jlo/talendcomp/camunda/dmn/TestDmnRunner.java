@@ -1,7 +1,10 @@
 package de.jlo.talendcomp.camunda.dmn;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Date;
 
@@ -133,15 +136,63 @@ public class TestDmnRunner {
 		runner.addInputValue("varStr", varStr);
 		runner.addInputValue("varLong", varLong);
 		runner.addInputValue("varDate", varDate);
-		String key1 = runner.getValueKeyForCurrentVariables();
+		Object key1 = runner.getValueKeyForCurrentVariables();
 		System.out.println(key1);
 		DmnRunner runner2 = new DmnRunner();
 		runner2.addInputValue("varStr", varStr);
 		runner2.addInputValue("varLong", varLong);
 		runner2.addInputValue("varDate", varDate);
-		String key2 = runner2.getValueKeyForCurrentVariables();
+		Object key2 = runner2.getValueKeyForCurrentVariables();
 		System.out.println(key2);
 		assertEquals("Key generation is not equal", key1, key2);
+	}
+
+	@Test
+	public void testCacheKeyNoCollision() throws Exception {
+		DmnRunner runner = new DmnRunner();
+		runner.addInputValue("a", "xb");
+		runner.addInputValue("b", "1");
+		DmnRunner runner2 = new DmnRunner();
+		runner2.addInputValue("a", "x");
+		runner2.addInputValue("b", "b1");
+		assertNotEquals(runner.getValueKeyForCurrentVariables(), runner2.getValueKeyForCurrentVariables());
+	}
+
+	@Test
+	public void testCachedDecisionIsValidated() throws Exception {
+		DmnRunner runner = new DmnRunner();
+		runner.setUseCachedDecision(true);
+		runner.loadDmnFromResource("surcharge", "/collect_sum_example.dmn");
+		DmnRunner runner2 = new DmnRunner();
+		runner2.setUseCachedDecision(true);
+		runner2.loadDmnFromResource("surcharge", "/collect_sum_example.dmn");
+		runner2.addExpectedOutputVariable("not_existing_output");
+		try {
+			runner2.validateOutputVariables();
+			fail("Validation of the cached decision must detect the not existing output");
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testNoRecordsNotNullable() throws Exception {
+		DmnRunner runner = new DmnRunner();
+		runner.loadDmnFromResource("surcharge", "/collect_sum_example.dmn");
+		runner.setProvideOneRecordIfNoDecsionResult(true);
+		runner.clearVariables();
+		runner.addInputValue("product", "Product0");
+		runner.addInputValue("type", "1");
+		runner.addInputValue("grade", "4307");
+		runner.addInputValue("width", 0);
+		runner.evaluate();
+		assertTrue(runner.next());
+		try {
+			runner.getOutputValue("surcharge", false);
+			fail("null for a not nullable column must fail");
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+		}
 	}
 
 }

@@ -45,12 +45,14 @@
    String decisionKey = ElementParameterParser.getValue(node, "__DECISION_KEY__");
    boolean oneRecordIfNoResult = "true".equals(ElementParameterParser.getValue(node, "__PROVIDE_EMPTY_OUTPUT_IF_DECISION_HAS_NO_RESULT__"));
    boolean cacheResults = "true".equals(ElementParameterParser.getValue(node, "__CACHE_RESULTS__"));
+   boolean cacheDecision = "true".equals(ElementParameterParser.getValue(node, "__CACHE_DECISION__"));
 	@SuppressWarnings("unchecked")
 	List<Map<String, String>> configList = (List<Map<String,String>>) ElementParameterParser.getObjectValue(node, "__COLUMN_CONFIG__");
 %>
 	int nb_line_<%=cid%> = 0;
 	de.jlo.talendcomp.camunda.dmn.DmnRunner <%=cid%> = new de.jlo.talendcomp.camunda.dmn.DmnRunner();
 	String decisionKey_<%=cid%> = <%=decisionKey%>;
+	<%=cid%>.setUseCachedDecision(<%=cacheDecision%>);
 <% if ("RESOURCE".equals(dmnSource)) { %>
 	<%=cid%>.loadDmnFromResource(decisionKey_<%=cid%>, <%=resourceName%>);		
 <% } else if ("FILE".equals(dmnSource)) { %>
