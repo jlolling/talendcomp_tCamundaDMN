@@ -4,11 +4,19 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.jlo.talendcomp</groupId>
 	<artifactId>jlo-talendcomp-camunda-dmn</artifactId>
-	<version>1.5</version>
+	<version>1.6</version>
 	<name>Camunda DMN component</name>
 
 	<dependencyManagement>
 		<dependencies>
+			<!-- feel-engine 1.19.3 from the Camunda 7.24.0 BOM rebuilds its root context for every evaluation and is very slow,
+			     fixed in 1.19.4 by https://github.com/camunda/feel-scala/pull/1108 (backport https://github.com/camunda/feel-scala/pull/1117) -->
+			<dependency>
+				<groupId>org.camunda.feel</groupId>
+				<artifactId>feel-engine</artifactId>
+				<classifier>scala-shaded</classifier>
+				<version>1.19.6</version>
+			</dependency>
 			<dependency>
 				<groupId>org.camunda.bpm.dmn</groupId>
 				<artifactId>camunda-engine-dmn-bom</artifactId>
