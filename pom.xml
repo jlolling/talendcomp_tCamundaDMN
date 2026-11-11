@@ -9,7 +9,8 @@
 
 	<dependencyManagement>
 		<dependencies>
-			<!-- feel-engine 1.19.3 from the Camunda 7.24.0 BOM rebuilds its root context for every evaluation and is very slow -->
+			<!-- feel-engine 1.19.3 from the Camunda 7.24.0 BOM rebuilds its root context for every evaluation and is very slow,
+			     fixed in 1.19.4 by https://github.com/camunda/feel-scala/pull/1108 (backport https://github.com/camunda/feel-scala/pull/1117) -->
 			<dependency>
 				<groupId>org.camunda.feel</groupId>
 				<artifactId>feel-engine</artifactId>
